@@ -4,8 +4,9 @@ use crossterm::{
     event::{poll, read, Event::*, KeyCode},
     terminal, Result,
 };
+use errno::errno;
 
-// ctrl + c 退出
+// 按q 退出
 fn main() -> Result<()> {
     // 逐个字符输出
     terminal::enable_raw_mode()?;
@@ -14,11 +15,19 @@ fn main() -> Result<()> {
     loop {
         let mut c = None;
 
-        if let Ok(true) = poll(Duration::from_millis(100)) {
-            if let Ok(event) = read() {
-                if let Key(key_event) = event {
-                    c = Some(key_event);
+        match poll(Duration::from_millis(100)) {
+            Ok(true) => {
+                if let Ok(event) = read() {
+                    if let Key(key_event) = event {
+                        c = Some(key_event);
+                    }
+                } else {
+                    die("read failed");
                 }
+            }
+            Ok(false) => {}
+            _ => {
+                die("poll failed");
             }
         }
 
@@ -33,5 +42,12 @@ fn main() -> Result<()> {
         }
     }
     terminal::disable_raw_mode()?;
+
     Ok(())
+}
+
+fn die<S: Into<String>>(message: S) {
+    let _ = terminal::disable_raw_mode();
+    eprintln!("{}: {}", message.into(), errno());
+    std::process::exit(1);
 }
